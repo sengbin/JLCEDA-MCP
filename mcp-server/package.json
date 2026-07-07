@@ -1,0 +1,42 @@
+{
+  "name": "jlceda-mcp-server",
+  "version": "2.1.0",
+  "description": "JLCEDA EDA MCP Server - 嘉立创EDA的Model Context Protocol服务器（支持多客户端）",
+  "main": "dist/index.js",
+  "type": "module",
+  "bin": {
+    "jlceda-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "lint": "eslint src --ext .ts",
+    "clean": "rimraf dist"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "jlceda",
+    "eda",
+    "schematic",
+    "pcb"
+  ],
+  "author": "JLCEDA",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/ws": "^8.5.10",
+    "typescript": "^5.3.0",
+    "rimraf": "^5.0.5",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0"
+  }
+}

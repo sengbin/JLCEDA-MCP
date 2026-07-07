@@ -1,113 +1,318 @@
-﻿# JLCEDA MCP
+# JLCEDA MCP v2.0
 
-JLCEDA MCP 是一套面向嘉立创 EDA 的本地 MCP 双扩展方案，由 mcp-hub 和 mcp-bridge 组成。接入后，你可以直接在 Copilot、Cursor Chat 中检查原理图、分析电路、辅助设计电路方案，并让 AI 在嘉立创 EDA 中完成相关操作。
+> 🎉 首个支持所有 MCP 客户端的嘉立创 EDA 集成方案
 
-## 整体链路
+将嘉立创 EDA 专业版集成到 MCP 生态系统，支持 Claude Desktop、OpenCode、Cline 等所有 MCP 客户端。
+
+## 📐 架构设计（v2.0）
 
 ```
-嘉立创 EDA（mcp-bridge）
-    ↕ WebSocket 桥接
-VS Code / Cursor（mcp-hub）
-    ↕ stdio/http MCP 协议
-MCP 客户端（Copilot / Cursor Chat / Claude Code / Codex 等）
+AI 客户端（Claude Desktop / OpenCode / Cline 等）
+    ↓ stdio/JSON-RPC (MCP 协议)
+原生 MCP 服务器（独立 Node.js 进程）
+    • WebSocket 服务器（端口 8765）
+    • 工具分发和结果转换
+    ↓ WebSocket 通信
+EDA Bridge 插件 v2.0（WebSocket 客户端）
+    • 智能页面检测
+    • 自动连接和重连
+    • 执行 EDA 操作
+    ↓ 全局 eda 对象
+JLCEDA EDA API
 ```
 
-- **mcp-bridge**：EDA 侧扩展，建立到 mcp-hub 的 WebSocket 连接，负责让 AI 在嘉立创 EDA 中读取当前图纸信息并执行相关操作。
-- **mcp-hub**：VS Code/Cursor 侧扩展，通过 stdio/http MCP 协议将多项 MCP 工具能力暴露给 AI 助手，并托管桥接 WebSocket 服务接收 Bridge 连接。
+### 🚀 创新特点
 
-## 可用工具
+- ✅ **反转架构**：EDA 插件作为客户端，MCP 服务器作为服务端
+- ✅ **支持所有 MCP 客户端**：Claude Desktop、OpenCode、Cline 等
+- ✅ **无需 IDE 插件**：MCP 服务器独立运行，不依赖 VS Code/Cursor
+- ✅ **智能检测**：仅在原理图/PCB 页面自动连接
+- ✅ **自动重连**：连接断开自动恢复
 
-**基础工具**
-
-| 工具                   | 说明                                                                                          |
-| -------------------- | --------------------------------------------------------------------------------------------- |
-| `schematic_read`   | 读取当前原理图的完整电路语义快照，返回器件列表、引脚→网络名映射、网络连接关系与 DRC 检查结果 |
-| `schematic_review` | 读取全工程所有原理图页面的网表文件，覆盖多页电路，适合全局审查、BOM 核查与跨页信号追踪       |
-| `component_select` | 在 EDA 系统库中搜索候选器件，并在 VS Code / Cursor 侧边栏中由用户确认具体型号                |
-| `component_place`  | 按顺序启动器件交互放置流程，在侧边栏中提示当前进度并等待用户完成放置                         |
-
-**透传 EDA API 工具（可选）**
-
-在 mcp-hub 侧边栏「功能设置」中开启「暴露透传 EDA API 工具」后，以下工具将额外暴露给 AI 客户端，开关切换后立即生效。适合有进阶需求的用户探索使用。
-
-| 工具           | 说明                                                                |
-| ------------ | ------------------------------------------------------------------- |
-| `api_index`  | 列出所有可用的 EDA API 模块名称，用于浏览 API 命名空间全貌               |
-| `api_search` | 按关键词搜索具体 API 方法及其参数说明，便于 AI 定位所需接口           |
-| `eda_context`| 读取当前 EDA 页面的上下文信息，包括活动页类型与当前工程基本状态       |
-| `api_invoke` | 直接调用任意 EDA API 并将结果透传给 AI，适用于核心工具未覆盖的定制化任务           |
-
-## 交互使用说明
-
-1. 当 AI 需要先确认器件型号时，会在 VS Code / Cursor 侧边栏弹出器件选型面板，由用户手动确认具体器件。
-2. 当 AI 需要在原理图中放置器件时，会在侧边栏弹出交互放置面板，按顺序提示当前应放置的器件。
-3. 在器件选型或器件放置过程中，如果点击取消或跳过，只会跳过当前器件，AI 会继续处理后续器件，不会重试当前项。
-4. 电源符号和地符号不会由 AI 自动放置，需由用户在嘉立创 EDA 中手动添加。
-5. 如果启用了“打开 EDA 时关闭侧边栏”，那么打开 EDA 后，以及器件选型或器件放置完成后，侧边栏都会自动收起。
-
-## 安装
-
-**服务端**和**客户端**两个扩展都需要安装。
-
-> 初次安装时，先确认 VS Code/Cursor 与嘉立创 EDA 两侧扩展都已安装，再检查聊天工具的 MCP 服务配置是否正确。
-
-### mcp-hub（VS Code / Cursor）
-
-**从扩展商店安装（推荐）：**
-
-- VS Code：[marketplace.visualstudio.com](https://marketplace.visualstudio.com/items?itemName=chengbin.jlceda-mcp-hub)
-- Cursor（Open VSX）：[open-vsx.org](https://open-vsx.org/extension/chengbin/jlceda-mcp-hub)
-
-### mcp-bridge（嘉立创 EDA）
-
-**从扩展管理器安装（推荐）：**
-
-打开嘉立创 EDA，进入扩展管理器，搜索"MCP Bridge"并安装。
-
-## 注意事项
-
-1. 两个扩展必须同时安装，单独安装任意一侧均无法使用在线调用功能。
-2. 如果修改了服务端监听端口，需在 EDA Bridge 设置页同步更新桥接地址。
-3. 首次发起聊天后服务才会启动，且仅在原理图或 PCB 页面可连接。
-4. 多页面同时连接时，只有活动角色页面执行任务，其余页面处于待命状态，属正常现象。若当前 EDA 页面与活动客户端不一致，请关闭其他 EDA 页面后刷新当前页。
-5. 状态异常时，先重载 VS Code/Cursor，再重启嘉立创 EDA。
-
----
-
-## 开发说明
-
-以下内容面向开发者与维护者。
-
-### 仓库结构
+## 📦 仓库结构
 
 ```text
 JLCEDA-MCP/
-├─ mcp-hub/         VS Code/Cursor 扩展与 stdio MCP 运行时
-├─ mcp-bridge/   嘉立创 EDA 扩展与桥接 WebSocket 客户端
-├─ build/           构建产物输出目录（VSIX / EEXT）
-└─ tool/            离线文档与资源生成辅助脚本
+├─ mcp-server/       原生 MCP 服务器（Node.js 独立进程）
+├─ mcp-bridge/       EDA Bridge 插件（WebSocket 客户端）
+├─ build/            构建产物输出目录（EEXT）
+└─ tool/             离线文档与资源生成辅助脚本
 ```
+
+**两个组件缺一不可，需要配合使用。**
+
+---
+
+## 🚀 快速开始
+
+### 前置要求
+
+- Node.js 20+
+- JLCEDA EDA 专业版（最新版）
+- 支持 MCP 的 AI 客户端（Claude Desktop / OpenCode / Cline 等）
+
+### 安装步骤
+
+#### 1. 克隆仓库
+
+```bash
+git clone https://github.com/UR-xiaoyang/JLCEDA-MCP.git
+cd JLCEDA-MCP
+```
+
+#### 2. 构建 MCP 服务器
+
+```bash
+cd mcp-server
+npm install
+npm run build
+# 产物：dist/index.js
+```
+
+#### 3. 构建 EDA Bridge 插件
+
+```bash
+cd ../mcp-bridge
+npm install
+npm run build
+# 产物：../build/jlceda-mcp-bridge-2.0.0.eext
+```
+
+或者直接从 [Releases](https://github.com/UR-xiaoyang/JLCEDA-MCP/releases) 下载构建好的 `.eext` 文件。
+
+#### 4. 安装 EDA Bridge 插件
+
+1. 打开嘉立创 EDA → 扩展 → 扩展管理
+2. 点击"从文件安装"
+3. 选择 `build/jlceda-mcp-bridge-2.0.0.eext`
+4. 重启 EDA
+
+#### 5. 配置 MCP 客户端
+
+**Claude Desktop 配置**：
+
+编辑 `%APPDATA%\Claude\claude_desktop_config.json` (Windows) 或 
+`~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)：
+
+```json
+{
+  "mcpServers": {
+    "jlceda": {
+      "command": "node",
+      "args": ["D:\\path\\to\\JLCEDA-MCP\\mcp-server\\dist\\index.js"],
+      "env": {
+        "JLCEDA_BRIDGE_PORT": "8765"
+      }
+    }
+  }
+}
+```
+
+**OpenCode 配置**：
+
+编辑 `~/.config/opencode/opencode.json`：
+
+```json
+{
+  "mcp": {
+    "jlceda": {
+      "command": ["node", "D:\\path\\to\\JLCEDA-MCP\\mcp-server\\dist\\index.js"],
+      "enabled": true,
+      "type": "local",
+      "env": {
+        "JLCEDA_BRIDGE_PORT": "8765"
+      }
+    }
+  }
+}
+```
+
+#### 6. 启动使用
+
+1. 启动 AI 客户端（如 Claude Desktop）→ MCP 服务器自动启动
+2. 打开嘉立创 EDA，切换到原理图或 PCB 页面 → EDA 插件自动连接
+3. 在 AI 客户端中开始对话，使用 JLCEDA 工具
+
+---
+
+## 🛠️ 可用工具
+
+### 基础工具
+
+| 工具                   | 说明                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------- |
+| `jlceda_eda_context` | 获取 EDA 环境信息（当前项目、文档类型） |
+| `jlceda_schematic_read`   | 读取当前原理图的完整电路语义快照，返回器件列表、引脚→网络名映射、网络连接关系与 DRC 检查结果 |
+| `jlceda_schematic_review` | 读取全工程所有原理图页面的网表文件，覆盖多页电路，适合全局审查、BOM 核查与跨页信号追踪       |
+| `jlceda_component_select` | 在 EDA 系统库中搜索候选器件，返回候选列表供 AI 选择                |
+| `jlceda_component_place_auto`  | 自动放置器件到指定坐标                         |
+| `jlceda_netlabel_place`   | 在指定器件引脚位置放置网络标签，通过网络标签代替导线实现电气连接，自动识别电源/地符号类型     |
+| `jlceda_netlabel_modify`  | 修改已放置的网络标签名称，支持按引脚位置或图元 ID 查找并修改                      |
+
+### 自动化工具
+
+| 工具                   | 说明                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------- |
+| `jlceda_auto_wire_connect` | 自动连线功能，按网络名连接引脚 |
+| `jlceda_schematic_auto_layout` | 原理图自动布局，优化器件位置 |
+| `jlceda_schematic_auto_routing` | 原理图自动布线，自动连接导线 |
+
+### 高级工具
+
+| 工具           | 说明                                                                |
+| ------------ | ------------------------------------------------------------------- |
+| `jlceda_api_index`  | 列出所有可用的 EDA API 模块名称，用于浏览 API 命名空间全貌               |
+| `jlceda_api_search` | 按关键词搜索具体 API 方法及其参数说明，便于 AI 定位所需接口           |
+| `jlceda_api_invoke` | 直接调用任意 EDA API 并将结果透传给 AI，适用于核心工具未覆盖的定制化任务           |
+
+---
+
+## 💡 使用说明
+
+1. **启动流程**：
+   - 先启动 MCP 客户端（如 Claude Desktop）→ MCP 服务器自动启动
+   - 打开嘉立创 EDA，切换到原理图或 PCB 页面 → EDA 插件自动连接
+
+2. **推荐使用网络标签连接**：AI 会使用 `jlceda_netlabel_place` 在器件引脚位置放置网络标签（如 VCC、GND、信号名等），通过相同网络名实现电气连接，避免绘制复杂导线路径。电源/地符号会自动识别并放置。
+
+3. **连接状态查看**：在 EDA 中点击菜单 **MCP Bridge → 连接状态**，查看连接详情和统计信息。
+
+4. **调试日志**：如遇问题，点击 **MCP Bridge → 查看调试日志** 排查。
+
+---
+
+## 💬 使用示例
+
+### 示例 1：读取原理图
+
+**对话：**
+```
+请帮我读取当前原理图
+```
+
+**AI 返回：**
+```
+✅ 原理图信息：
+- 器件数量：8 个
+- 器件列表：
+  • DC1: 电源插座 (DC-005.1)
+  • C1-C3: 钽电容 (100uF)
+  • U1-U2: 电源模块
+  • U3: ESP32-WROOM-32E
+  • U4: CH340G USB 转串口
+- DRC 检查：未通过（有未连接的引脚）
+```
+
+### 示例 2：搜索并放置器件
+
+**对话：**
+```
+帮我搜索 STM32F103C8T6 芯片，然后放置到坐标 (3000, 3000)
+```
+
+**AI 执行：**
+1. 搜索 STM32F103C8T6
+2. 显示候选列表
+3. 选择合适的型号
+4. 放置到指定位置
+
+### 示例 3：电路分析
+
+**对话：**
+```
+分析当前原理图的电路功能
+```
+
+**AI 返回详细的电路分析和改进建议。**
+
+---
+
+## 📝 注意事项
+
+1. **必须同时安装**：MCP 服务器和 EDA Bridge 插件必须配合使用。
+2. **端口配置**：默认使用端口 8765，如需修改需在两边同步更新。
+3. **页面检测**：仅在原理图（documentType=1）或 PCB（documentType=3）页面自动连接。
+4. **连接异常**：如遇连接问题，可点击 **MCP Bridge → 重启服务器** 手动重连。
+5. **多页面场景**：同时打开多个 EDA 页面时，只有活动页面会连接，属正常现象。
+
+---
+
+## 🔍 故障排除
+
+### 问题 1：EDA 插件显示"未连接"
+
+**检查：**
+1. 确认 MCP 服务器正在运行
+2. 检查端口 8765 是否被占用：`netstat -ano | findstr 8765`
+3. 查看 EDA 调试日志：**MCP Bridge → 查看调试日志**
+
+**解决：**
+1. 重启 AI 客户端（启动 MCP 服务器）
+2. 在 EDA 中点击：**MCP Bridge → 重启服务器**
+3. 查看连接状态确认
+
+### 问题 2：工具调用失败
+
+**检查：**
+1. 确认在原理图或 PCB 页面
+2. 查看 EDA 调试日志查找错误
+3. 确认连接状态显示"已连接"
+
+**解决：**
+1. 切换到原理图页面
+2. 等待 3-5 秒自动连接
+3. 重试工具调用
+
+---
+
+## 🎯 v2.0 更新日志
+
+### 架构变更
+
+- ✅ **反转架构**：MCP 服务器作为 WebSocket 服务端，EDA 插件作为客户端
+- ✅ **移除 mcp-hub**：不再需要 VS Code/Cursor 扩展
+- ✅ **支持所有 MCP 客户端**：Claude Desktop、OpenCode、Cline 等
+- ✅ **统一仓库**：MCP 服务器和 EDA 插件放在同一仓库，缺一不可
+
+### 新增功能
+
+- ✅ `netlabel_place` / `netlabel_modify` - 网络标签放置和修改
+- ✅ `auto_wire_connect` - 自动连线
+- ✅ `schematic_auto_layout` - 自动布局
+- ✅ `schematic_auto_routing` - 自动布线  
+- ✅ `component_place_auto` - 自动放置器件
+- ✅ 连接状态监控和手动重启
+- ✅ 智能页面检测
+- ✅ 自动重连机制
+
+### 修复问题
+
+- ✅ 修复器件放置功能（按 pro-api-sdk 标准）
+- ✅ 修复页面检测（使用 documentType）
+- ✅ 修复状态显示（双重标记机制）
+- ✅ 修复 WebSocket API（使用 register 方法）
+
+---
+
+## 🛠️ 开发说明
 
 ### 开发环境要求
 
 - Node.js 20+
 - npm
-- VS Code 1.105+（mcp-hub 开发与调试）
-- 嘉立创 EDA 专业版（mcp-bridge 安装与联调）
+- 嘉立创 EDA 专业版
 
-### 构建
+### 本地开发
 
-**构建 mcp-hub：**
+**开发 MCP 服务器：**
 
 ```bash
-cd mcp-hub
+cd mcp-server
 npm install
 npm run build
 ```
 
-产物：`build/jlceda-mcp-hub.vsix`
-
-**构建 mcp-bridge：**
+**开发 EDA Bridge 插件：**
 
 ```bash
 cd mcp-bridge
@@ -115,30 +320,35 @@ npm install
 npm run build
 ```
 
-产物：`build/jlceda-mcp-bridge.eext`
+### 添加新工具
 
-### 本地联调流程
+1. 在 MCP 服务器中定义工具（`mcp-server/src/resources/mcp-tool-definitions.json`）
+2. 在 EDA 插件中实现 handler（`mcp-bridge/src/mcp/`）
+3. 注册 handler 到 dispatcher
+4. 重新构建两边
+5. 测试
 
-1. 在 VS Code 或 Cursor 中安装 mcp-hub 扩展。
-2. 在侧边栏确认桥接监听地址，默认为 `ws://127.0.0.1:8765/bridge/ws`。
-3. 在嘉立创 EDA 中安装 mcp-bridge，写入相同的桥接地址。
-4. 打开 EDA 工程，确认 Bridge 已建立桥接连接。
-5. 在聊天客户端调用工具，并观察侧边栏状态、连接列表与日志。
+---
 
-### 开发约定
+## 🤝 贡献
 
-1. 新增或变更工具定义时，同步更新 `mcp-hub/resources/mcp-tool-definitions.json`、对应 README 与 CHANGELOG。
-2. 新增或变更桥接任务路径时，必须同时修改 mcp-hub 与 mcp-bridge 两端处理逻辑。
-3. 调整桥接地址、端口、协议字段或角色模型时，同步更新相关 README 与 CHANGELOG。
-4. 发布前执行两端构建，确认 VSIX 与 EEXT 均可成功生成。
+欢迎提交 Issue 和 Pull Request！
 
-### 相关文档
+---
 
-- [mcp-hub/README.md](./mcp-hub/README.md)
-- [mcp-bridge/README.md](./mcp-bridge/README.md)
-- [mcp-hub/CHANGELOG.md](./mcp-hub/CHANGELOG.md)
-- [mcp-bridge/CHANGELOG.md](./mcp-bridge/CHANGELOG.md)
-
-## 许可证
+## 📄 许可证
 
 本项目采用 [Apache License 2.0](LICENSE) 许可证。
+
+---
+
+## 🎉 致谢
+
+- 感谢嘉立创 EDA 团队提供的专业版 API
+- 感谢 Anthropic 的 MCP 协议规范
+- 感谢所有测试和反馈的用户
+- 基于 [sengbin/JLCEDA-MCP](https://github.com/sengbin/JLCEDA-MCP) 项目进行重大架构改进
+
+---
+
+**JLCEDA MCP - 让 AI 助手拥有硬件设计能力！** 🚀

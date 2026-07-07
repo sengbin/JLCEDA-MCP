@@ -1,0 +1,465 @@
+[
+  {
+    "name": "api_index",
+    "description": "获取可调用 EDA API 索引列表。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "description": "可选。按命名空间过滤，例如 sch/dmt/lib，不填则返回全部。"
+        }
+      }
+    }
+  },
+  {
+    "name": "api_search",
+    "description": "搜索 EDA API 签名与说明信息。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "检索关键词，支持 API 名称、摘要、命名空间等。建议使用英文关键词（如 bom、getDrc、place 等），可组合多词（空格分隔）。"
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "all",
+            "callable",
+            "type"
+          ],
+          "default": "all",
+          "description": "检索范围：all=全部，callable=可调用 API，type=类型符号。查找可调用函数时优先使用 callable。"
+        },
+        "owner": {
+          "type": "string",
+          "description": "可选。按所属命名空间/类型过滤，能大幅缩小结果范围。当前文档为原理图时，使用 \"sch\" 过滤原理图专属 API；为 PCB 时，使用 \"pcb\" 过滤 PCB 专属 API。示例：owner=\"sch\" 可找到 eda.sch_ManufactureData 等原理图命名空间下的 API。"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 10,
+          "description": "最多返回条数，范围 1-50。"
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
+    "name": "api_invoke",
+    "description": "调用指定的 EDA API 接口。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "apiFullName": {
+          "type": "string",
+          "description": "要调用的 API 全名，格式为 eda.模块名.方法名（最少三段路径），例如 eda.sch_Drc.check。"
+        },
+        "args": {
+          "type": "array",
+          "items": {},
+          "description": "API 调用参数列表，严格按 signatureText 中的参数顺序填写。无入参时传空数组 []。"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 120000,
+          "default": 15000,
+          "description": "桥接超时（毫秒）。"
+        }
+      },
+      "required": [
+        "apiFullName"
+      ]
+    }
+  },
+  {
+    "name": "eda_context",
+    "description": "获取当前 EDA 运行时上下文信息。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "type": "string",
+          "description": "可选。上下文读取范围标识，用于业务侧分组标记，可传入任意字符串或不传。"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 120000,
+          "default": 15000,
+          "description": "桥接超时（毫秒）。"
+        }
+      }
+    }
+  },
+  {
+    "name": "schematic_read",
+    "description": "读取当前原理图页面的完整电路语义快照。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "schematic_review",
+    "description": "读取全工程所有原理图页面的网表文件。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "component_select",
+    "description": "搜索器件并返回候选列表（最多5个），供 AI 根据规格、库存、价格选择最合适的器件。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "keyword": {
+          "type": "string",
+          "description": "器件搜索关键词。对于电阻/电容/电感，必须带单位（如 1kΩ、100nF、10uH）。"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 20,
+          "default": 5,
+          "description": "返回候选数量，默认 5。"
+        }
+      },
+      "required": [
+        "keyword"
+      ]
+    }
+  },
+  {
+    "name": "component_place_auto",
+    "description": "自动将器件放置到原理图的指定坐标。支持 AI 计算智能布局，或使用网格/线性自动布局。放置后用户可手动调整位置。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "components": {
+          "type": "array",
+          "description": "待放置器件列表。",
+          "items": {
+            "type": "object",
+            "properties": {
+              "uuid": {
+                "type": "string",
+                "description": "器件 UUID（必填）。"
+              },
+              "libraryUuid": {
+                "type": "string",
+                "description": "器件所属库 UUID（必填）。"
+              },
+              "name": {
+                "type": "string",
+                "description": "器件名称（可选，用于日志）。"
+              },
+              "subPartName": {
+                "type": "string",
+                "description": "多子部件器件的子部件名称（可选）。"
+              },
+              "x": {
+                "type": "number",
+                "description": "X 坐标（可选）。如果指定，则精确放置到此坐标；否则使用布局策略自动计算。"
+              },
+              "y": {
+                "type": "number",
+                "description": "Y 坐标（可选）。"
+              },
+              "rotation": {
+                "type": "number",
+                "enum": [0, 90, 180, 270],
+                "default": 0,
+                "description": "旋转角度（可选）。"
+              },
+              "mirror": {
+                "type": "boolean",
+                "default": false,
+                "description": "是否镜像（可选）。"
+              }
+            },
+            "required": ["uuid", "libraryUuid"]
+          }
+        },
+        "layoutStrategy": {
+          "type": "string",
+          "enum": ["grid", "vertical", "horizontal", "fixed"],
+          "default": "grid",
+          "description": "自动布局策略（当器件未指定 x,y 时使用）：grid=网格布局，vertical=垂直排列，horizontal=水平排列，fixed=固定位置。"
+        },
+        "gridLayout": {
+          "type": "object",
+          "description": "网格布局参数（layoutStrategy=grid 时）。",
+          "properties": {
+            "startX": { "type": "number", "default": 0, "description": "起始 X 坐标" },
+            "startY": { "type": "number", "default": 0, "description": "起始 Y 坐标" },
+            "spacingX": { "type": "number", "default": 1500, "description": "水平间距" },
+            "spacingY": { "type": "number", "default": 1500, "description": "垂直间距" },
+            "columns": { "type": "number", "default": 4, "description": "列数" }
+          }
+        },
+        "linearLayout": {
+          "type": "object",
+          "description": "线性布局参数（layoutStrategy=vertical/horizontal 时）。",
+          "properties": {
+            "startX": { "type": "number", "default": 0 },
+            "startY": { "type": "number", "default": 0 },
+            "spacing": { "type": "number", "default": 1500, "description": "间距" }
+          }
+        },
+        "fixedPosition": {
+          "type": "object",
+          "description": "固定位置（layoutStrategy=fixed 时）。",
+          "properties": {
+            "x": { "type": "number", "default": 0 },
+            "y": { "type": "number", "default": 0 }
+          }
+        }
+      },
+      "required": [
+        "components"
+      ]
+    }
+  },
+  {
+    "name": "auto_wire_connect",
+    "description": "根据网络连接关系，自动在器件引脚之间创建导线。支持按网络名分组连接或点对点连接，使用曼哈顿布线（正交）或直线布线。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "connections": {
+          "type": "array",
+          "description": "按网络名分组的连接定义（与 pointToPointConnections 二选一）。",
+          "items": {
+            "type": "object",
+            "properties": {
+              "netName": {
+                "type": "string",
+                "description": "网络名称（如 VCC、GND、SDA）。"
+              },
+              "pinReferences": {
+                "type": "array",
+                "description": "该网络需要连接的所有引脚。",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "componentId": {
+                      "type": "string",
+                      "description": "器件实例 ID（从 schematic_read 获取的 componentInstanceId）。"
+                    },
+                    "pinNumber": {
+                      "type": "string",
+                      "description": "引脚编号。"
+                    }
+                  },
+                  "required": ["componentId", "pinNumber"]
+                }
+              }
+            },
+            "required": ["netName", "pinReferences"]
+          }
+        },
+        "pointToPointConnections": {
+          "type": "array",
+          "description": "点对点连接定义（与 connections 二选一）。",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "object",
+                "properties": {
+                  "componentId": { "type": "string" },
+                  "pinNumber": { "type": "string" }
+                },
+                "required": ["componentId", "pinNumber"]
+              },
+              "to": {
+                "type": "object",
+                "properties": {
+                  "componentId": { "type": "string" },
+                  "pinNumber": { "type": "string" }
+                },
+                "required": ["componentId", "pinNumber"]
+              },
+              "netName": {
+                "type": "string",
+                "description": "可选的网络名。"
+              }
+            },
+            "required": ["from", "to"]
+          }
+        },
+        "routingStrategy": {
+          "type": "string",
+          "enum": ["direct", "manhattan", "auto"],
+          "default": "manhattan",
+          "description": "布线策略：direct=直线，manhattan=正交布线（推荐），auto=自动选择。"
+        }
+      }
+    }
+  },
+  {
+    "name": "netlabel_place",
+    "description": "在指定器件引脚位置放置网络标签，通过网络标签代替导线实现电气连接。自动识别电源/地符号类型（VCC→电源符号，GND→地符号），其他为普通网络标签。推荐使用此工具代替 auto_wire_connect 进行电路连接。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "placements": {
+          "type": "array",
+          "description": "待放置的网络标签列表。",
+          "items": {
+            "type": "object",
+            "properties": {
+              "componentId": {
+                "type": "string",
+                "description": "器件图元 ID（从 component_place 或 schematic_read 获取）。"
+              },
+              "pinIdentifier": {
+                "type": "string",
+                "description": "引脚标识符：可以是引脚编号（如 \"1\"）或引脚名称（如 \"VCC\"）。"
+              },
+              "netName": {
+                "type": "string",
+                "description": "网络名称。电源网络如 VCC、+5V、+3V3 会自动放置电源符号；地网络如 GND、VSS 会自动放置地符号；其他如 UART_TX、SPI_CLK 等放置普通网络标签。相同网络名的标签会自动形成电气连接。"
+              }
+            },
+            "required": ["componentId", "pinIdentifier", "netName"]
+          },
+          "minItems": 1,
+          "maxItems": 100
+        }
+      },
+      "required": ["placements"]
+    }
+  },
+  {
+    "name": "netlabel_modify",
+    "description": "修改已放置的网络标签名称。支持按图元 ID 直接修改，或按引脚位置查找后修改。用于纠正错误或调整设计，作为 netlabel_place 的备用方案。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "object",
+          "description": "目标网络标签的定位方式。",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["primitiveId", "pin"],
+              "description": "定位类型：primitiveId=直接使用图元 ID，pin=通过引脚位置查找。"
+            },
+            "primitiveId": {
+              "type": "string",
+              "description": "网络标签的图元 ID（当 type=primitiveId 时必填）。"
+            },
+            "componentId": {
+              "type": "string",
+              "description": "器件图元 ID（当 type=pin 时必填）。"
+            },
+            "pinIdentifier": {
+              "type": "string",
+              "description": "引脚标识符（当 type=pin 时必填）。"
+            }
+          },
+          "required": ["type"]
+        },
+        "newNetName": {
+          "type": "string",
+          "description": "新的网络名称。"
+        }
+      },
+      "required": ["target", "newNetName"]
+    }
+  },
+  {
+    "name": "schematic_auto_layout",
+    "description": "对原理图器件执行自动布局。使用 EDA 内置的智能布局算法自动调整器件位置，优化电路可读性。可对所有器件或指定器件执行布局。此功能为 BETA 预览，需要 EDA 支持。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "uuids": {
+          "type": "array",
+          "description": "可选。要布局的器件 UUID 列表。不指定时对所有器件执行自动布局。",
+          "items": {
+            "type": "string"
+          }
+        },
+        "netlist": {
+          "type": "object",
+          "description": "可选。网表信息，用于优化布局算法。通常从 schematic_read 工具获取。",
+          "properties": {
+            "component": {
+              "type": "object",
+              "description": "器件信息映射",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "pinInfoMap": {
+                    "type": "object",
+                    "description": "引脚信息映射"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "designatorDeviceTypeMap": {
+          "type": "object",
+          "description": "可选。器件位号到类型的映射，帮助布局算法识别器件类型。例如：{\"R1\": \"resistor\", \"U1\": \"chip\"}",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["resistor", "capacitor", "inductive", "diode", "triode", "oscillator", "chip", "otherDevice"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "schematic_auto_routing",
+    "description": "对原理图执行自动布线。使用 EDA 内置的智能布线算法自动连接器件引脚，生成导线。可对所有未布线网络或指定网络执行布线。此功能为 BETA 预览，需要 EDA 支持。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "uuids": {
+          "type": "array",
+          "description": "可选。要布线的网络 UUID 列表。不指定时对所有未布线网络执行自动布线。",
+          "items": {
+            "type": "string"
+          }
+        },
+        "netlist": {
+          "type": "object",
+          "description": "可选。网表信息，用于优化布线算法。通常从 schematic_read 工具获取。",
+          "properties": {
+            "component": {
+              "type": "object",
+              "description": "器件信息映射",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "pinInfoMap": {
+                    "type": "object",
+                    "description": "引脚信息映射"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "designatorDeviceTypeMap": {
+          "type": "object",
+          "description": "可选。器件位号到类型的映射，帮助布线算法识别器件类型。例如：{\"R1\": \"resistor\", \"U1\": \"chip\"}",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["resistor", "capacitor", "inductive", "diode", "triode", "oscillator", "chip", "otherDevice"]
+          }
+        }
+      }
+    }
+  }
+]

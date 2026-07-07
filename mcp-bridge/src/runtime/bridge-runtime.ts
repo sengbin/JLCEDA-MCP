@@ -15,14 +15,18 @@ import extensionConfig from '../../extension.json';
 import { getConfiguredMcpUrl, getMcpServerUrlChangedTopic } from '../bridge/config.ts';
 import { BridgeLogDispatchPipeline } from '../logging/log-dispatch.ts';
 import { bridgeLogPipeline } from '../logging/log.ts';
+import { debugLog } from '../utils/debug-log.ts';
 import { handleApiIndexTask } from '../mcp/api-index-handler.ts';
 import { handleApiSearchTask } from '../mcp/api-search-handler.ts';
+import { handleAutoLayoutTask } from '../mcp/auto-layout-handler.ts';
+import { handleAutoRoutingTask } from '../mcp/auto-routing-handler.ts';
 import {
 	handleComponentPlaceCheckTask,
 	handleComponentPlaceCloseTask,
 	handleComponentPlaceStartTask,
 	handleComponentPlaceTask,
 } from '../mcp/component-place-handler.ts';
+import { handleComponentPlaceAutoTask } from '../mcp/component-place-auto-handler.ts';
 import { handleComponentSelectTask } from '../mcp/component-select-handler.ts';
 import { handleEdaContextTask } from '../mcp/context-handler.ts';
 import { handleApiInvokeTask } from '../mcp/invoke-handler.ts';
@@ -41,10 +45,13 @@ const BRIDGE_TASK_HANDLERS: Record<string, (payload: unknown) => Promise<unknown
 	'/bridge/jlceda/api/index': handleApiIndexTask,
 	'/bridge/jlceda/api/search': handleApiSearchTask,
 	'/bridge/jlceda/api/invoke': handleApiInvokeTask,
+	'/bridge/jlceda/auto/layout': handleAutoLayoutTask,
+	'/bridge/jlceda/auto/routing': handleAutoRoutingTask,
 	'/bridge/jlceda/component/place/check': handleComponentPlaceCheckTask,
 	'/bridge/jlceda/component/place/close': handleComponentPlaceCloseTask,
 	'/bridge/jlceda/component/place/start': handleComponentPlaceStartTask,
 	'/bridge/jlceda/component/place': handleComponentPlaceTask,
+	'/bridge/jlceda/component/place-auto': handleComponentPlaceAutoTask,
 	'/bridge/jlceda/component/select': handleComponentSelectTask,
 	'/bridge/jlceda/context': handleEdaContextTask,
 	'/bridge/jlceda/schematic/read': handleSchematicReadTask,
@@ -160,22 +167,26 @@ function applyRole(message: BridgeServerRoleMessage): void {
 
 // 调度任务执行并回传结果。
 function enqueueTask(task: { requestId: string; path: string; payload: unknown; leaseTerm: number }, currentTransport: BridgeTransport): void {
+	debugLog('[DEBUG] enqueueTask called, path:', task.path, 'requestId:', task.requestId);
 	taskChain = taskChain.then(async () => {
-		if (currentRole !== 'active') {
-			currentTransport.completeTask(task.requestId, task.leaseTerm, undefined, {
-				message: BRIDGE_STATUS_TEXT.runtime.taskRejectedStandby,
-			});
-			return;
-		}
+		debugLog('[DEBUG] executing task, path:', task.path);
+		// 本地MCP运行模式，移除角色和租约检查
+		// if (currentRole !== 'active') {
+		// 	currentTransport.completeTask(task.requestId, task.leaseTerm, undefined, {
+		// 		message: BRIDGE_STATUS_TEXT.runtime.taskRejectedStandby,
+		// 	});
+		// 	return;
+		// }
 
-		if (task.leaseTerm !== currentLeaseTerm) {
-			currentTransport.completeTask(task.requestId, task.leaseTerm, undefined, {
-				message: BRIDGE_STATUS_TEXT.runtime.taskLeaseExpired,
-			});
-			return;
-		}
+		// if (task.leaseTerm !== currentLeaseTerm) {
+		// 	currentTransport.completeTask(task.requestId, task.leaseTerm, undefined, {
+		// 		message: BRIDGE_STATUS_TEXT.runtime.taskLeaseExpired,
+		// 	});
+		// 	return;
+		// }
 
 		const handler = BRIDGE_TASK_HANDLERS[task.path];
+		debugLog('[DEBUG] handler found:', !!handler, 'for path:', task.path);
 		if (!handler) {
 			currentTransport.completeTask(task.requestId, task.leaseTerm, undefined, {
 				message: `${BRIDGE_STATUS_TEXT.runtime.taskPathUnsupportedPrefix}${task.path}`,
@@ -186,15 +197,23 @@ function enqueueTask(task: { requestId: string; path: string; payload: unknown; 
 		let result: unknown;
 		let taskError: { message: string; stack?: string } | undefined;
 		try {
+			debugLog('[DEBUG] calling handler for path:', task.path);
+			// 任务执行前刷新服务端活动时间戳，避免空闲超时误判
+			currentTransport.refreshServerActivity();
 			result = await toSerializableAsync(await handler(task.payload));
+			// 任务完成后再次刷新，确保结果回传前连接不被断开
+			currentTransport.refreshServerActivity();
+			debugLog('[DEBUG] handler completed successfully, result:', typeof result);
 		}
 		catch (error: unknown) {
+			debugLog('[DEBUG] handler threw error:', error);
 			taskError = {
 				message: toSafeErrorMessage(error),
 				stack: error instanceof Error ? error.stack : undefined,
 			};
 		}
 
+		debugLog('[DEBUG] completing task, hasError:', !!taskError);
 		currentTransport.completeTask(task.requestId, task.leaseTerm, result, taskError);
 	}).catch((error: unknown) => {
 		const message = toSafeErrorMessage(error);
@@ -235,8 +254,10 @@ async function ensureConnected(): Promise<void> {
 	});
 
 	try {
+		debugLog('[DEBUG] bridge-runtime starting connection');
 		bridgeLogDispatchPipeline.resetHandshakeState();
 		await instance.connect();
+		debugLog('[DEBUG] bridge-runtime connection established');
 		if (!started) {
 			instance.close();
 			return;
@@ -245,7 +266,9 @@ async function ensureConnected(): Promise<void> {
 		transport = instance;
 		bridgeLogDispatchPipeline.flushToTransport(transport);
 		// 只有运行时确认握手完成并接管实例后，才通知服务端允许调度任务。
+		debugLog('[DEBUG] bridge-runtime calling reportReady');
 		transport.reportReady();
+		debugLog('[DEBUG] bridge-runtime reportReady completed');
 		showConnectSuccessToast();
 	}
 	catch (error: unknown) {

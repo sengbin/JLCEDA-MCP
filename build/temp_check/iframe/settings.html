@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="zh-Hans">
+	<head>
+		<title>MCP 连接设置</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<style>
+			:root {
+				color-scheme: light dark;
+				--bg: rgba(255, 255, 255, 0.98);
+				--bg-accent: #ffffff;
+				--border: rgba(88, 88, 88, 0.2);
+				--text: #252525;
+				--subtext: #6c6c6c;
+				--panel-bg: rgba(220, 220, 220, 0.96);
+				--panel-inner-bg: rgba(236, 236, 236, 0.92);
+				--input-bg: rgba(255, 255, 255, 0.92);
+				--input-border: rgba(122, 122, 122, 0.58);
+				--input-hover-border: #aebed9;
+				--input-focus-border: var(--vscode-focusBorder, #0078d4);
+				--status-chip-bg: rgba(84, 84, 84, 0.12);
+				--status-chip-fg: rgba(37, 37, 37, 0.9);
+				--ok: #1d8f57;
+				--warn: #b67a18;
+				--error: #c53a32;
+				--button: #2f6df6;
+				--button-hover: #255ed8;
+				--button-active: #1e4fb8;
+				--button-secondary: rgba(90, 90, 90, 0.14);
+				--button-secondary-hover: rgba(90, 90, 90, 0.2);
+				--button-secondary-active: rgba(90, 90, 90, 0.26);
+				--button-secondary-text: #2f2f2f;
+				--button-danger: #a93029;
+				--button-danger-hover: #972b25;
+				--button-danger-active: #84251f;
+				--button-danger-text: #ffffff;
+				--button-disabled: #c4c4c4;
+				--button-disabled-text: rgba(255, 255, 255, 0.78);
+			}
+
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--bg: rgba(28, 28, 28, 0.98);
+					--bg-accent: #2f2f2f;
+					--border: rgba(176, 176, 176, 0.12);
+					--text: #ededed;
+					--subtext: #b8b8b8;
+					--panel-bg: rgba(36, 36, 36, 0.96);
+					--panel-inner-bg: rgba(18, 18, 18, 0.88);
+					--input-bg: rgba(21, 21, 21, 0.94);
+					--input-border: rgba(108, 108, 108, 0.82);
+					--input-hover-border: #86a0d6;
+					--input-focus-border: var(--vscode-focusBorder, #0078d4);
+					--status-chip-bg: rgba(255, 255, 255, 0.08);
+					--status-chip-fg: rgba(237, 237, 237, 0.74);
+					--ok: #49c787;
+					--warn: #f2b14a;
+					--error: #ff7b72;
+					--button: #3c78ff;
+					--button-hover: #2f69ea;
+					--button-active: #2558cb;
+					--button-secondary: rgba(255, 255, 255, 0.08);
+					--button-secondary-hover: rgba(255, 255, 255, 0.12);
+					--button-secondary-active: rgba(255, 255, 255, 0.16);
+					--button-secondary-text: rgba(237, 237, 237, 0.92);
+					--button-danger: #a1332d;
+					--button-danger-hover: #b43a33;
+					--button-danger-active: #8d2823;
+					--button-danger-text: #ffffff;
+					--button-disabled: color-mix(in srgb, var(--button-secondary) 52%, var(--bg));
+					--button-disabled-text: rgba(255, 255, 255, 0.68);
+				}
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			html {
+				height: 100%;
+			}
+
+			body {
+				min-height: 100%;
+				margin: 0;
+				padding: 12px;
+				font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+				background: var(--bg);
+				color: var(--text);
+			}
+
+			.panel {
+				width: 100%;
+				max-width: none;
+				min-height: 0;
+				margin: 0;
+				padding: 0;
+				display: flex;
+				flex-direction: column;
+				align-items: stretch;
+				gap: 12px;
+				border: 0;
+				border-radius: 0;
+				background: transparent;
+				box-shadow: none;
+				backdrop-filter: none;
+			}
+
+			.section-card {
+				width: 100%;
+				padding: 12px;
+				border: none;
+				border-radius: 6px;
+				background: var(--panel-bg);
+				box-shadow: none;
+			}
+
+			.config-card {
+				display: flex;
+				flex-direction: column;
+			}
+
+			.status-card {
+				display: flex;
+				flex-direction: column;
+			}
+
+			.section-heading {
+				margin: 0 0 10px;
+				display: flex;
+				flex-direction: column;
+				gap: 4px;
+			}
+
+			.section-heading-compact {
+				margin-bottom: 8px;
+			}
+
+			.section-title {
+				margin: 0;
+				font-size: 12px;
+				font-weight: 600;
+				line-height: 1.4;
+				color: var(--text);
+			}
+
+			.section-subtitle {
+				margin: 0;
+				font-size: 11px;
+				line-height: 1.45;
+				color: var(--subtext);
+			}
+
+			.field {
+				width: 100%;
+			}
+
+			.field-label {
+				display: block;
+				margin: 0 0 6px;
+				font-size: 12px;
+				font-weight: 600;
+				line-height: 1.4;
+				color: var(--subtext);
+			}
+
+			.input {
+				width: 100%;
+				height: 28px;
+				padding: 0 8px;
+				border-radius: 5px;
+				border: 1px solid var(--input-border);
+				background: var(--input-bg);
+				font-size: 12px;
+				color: var(--text);
+				transition: background-color 0.16s ease, border-color 0.16s ease;
+			}
+
+			.actions {
+				margin-top: 12px;
+			}
+
+			.input::placeholder {
+				color: var(--subtext);
+			}
+
+			.input:hover {
+				border-color: var(--input-border);
+				background: var(--input-bg);
+			}
+
+			.input:focus {
+				outline: none;
+				border-color: var(--input-focus-border);
+			}
+
+			.button {
+				height: 28px;
+				padding: 0 12px;
+				border: 0;
+				border-radius: 5px;
+				background: var(--button);
+				color: #fff;
+				font-size: 12px;
+				font-weight: 500;
+				cursor: pointer;
+				white-space: nowrap;
+				transition: background-color 0.16s ease, transform 0.08s ease;
+			}
+
+			.button-block {
+				width: 100%;
+			}
+
+			.button-secondary {
+				background: var(--button-secondary);
+				color: var(--button-secondary-text);
+			}
+
+			.button-secondary:hover {
+				background: var(--button-secondary-hover);
+			}
+
+			.button-secondary:active {
+				background: var(--button-secondary-active);
+			}
+
+			.button-danger {
+				background: var(--button-danger);
+				color: var(--button-danger-text);
+			}
+
+			.button.button-danger:hover {
+				background: var(--button-danger-hover);
+			}
+
+			.button.button-danger:active {
+				background: var(--button-danger-active);
+			}
+
+			.button:hover {
+				background: var(--button-hover);
+			}
+
+			.button:active {
+				background: var(--button-active);
+			}
+
+			.button:disabled {
+				background: var(--button-disabled);
+				color: var(--button-disabled-text);
+				box-shadow: none;
+				opacity: 1;
+				cursor: default;
+			}
+
+			.status-surface {
+				width: 100%;
+				min-height: 0;
+				padding: 0;
+				border: none;
+				border-radius: 6px;
+				background: transparent;
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+				min-width: 0;
+			}
+
+			.status-line {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				min-height: 24px;
+			}
+
+			.status-title {
+				display: inline-block;
+				font-size: 12px;
+				font-weight: 400;
+				line-height: 1.25;
+				color: var(--status-chip-fg);
+				margin: 0;
+				padding: 3px 6px;
+				border-radius: 4px;
+				background: var(--status-chip-bg);
+				min-width: 84px;
+				text-align: center;
+			}
+
+			.status-text {
+				margin: 0;
+				font-size: 12px;
+				font-weight: 400;
+				line-height: 1.25;
+			}
+
+			.status-text.is-waiting-message {
+				font-size: 12px;
+				font-weight: 400;
+				line-height: 1.4;
+			}
+
+			.status-detail-row {
+				margin-top: 10px;
+				padding-top: 8px;
+				border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+				min-height: 0;
+				width: 100%;
+				flex: 1 1 auto;
+				display: flex;
+				flex-direction: column;
+				align-items: flex-start;
+				gap: 4px;
+			}
+
+			.status-detail-title {
+				flex: none;
+				margin: 0;
+				font-size: 11px;
+				line-height: 1.4;
+				color: var(--subtext);
+				font-weight: 600;
+			}
+
+			.status-detail {
+				margin: 0;
+				width: 100%;
+				min-width: 0;
+				min-height: 0;
+				flex: 1 1 auto;
+				font-size: 11px;
+				line-height: 1.4;
+				color: var(--subtext);
+				text-align: left;
+				white-space: normal;
+				overflow-wrap: anywhere;
+				overflow-y: auto;
+				padding-right: 2px;
+			}
+
+			.status-detail.is-error {
+				color: var(--error);
+			}
+
+			.status-detail.is-empty {
+				display: none;
+			}
+
+			.status-note {
+				margin: 10px 0 0;
+				padding: 8px 10px;
+				border-radius: 6px;
+				border: 1px solid color-mix(in srgb, var(--warn) 34%, transparent);
+				border-left: 3px solid var(--warn);
+				background: color-mix(in srgb, var(--warn) 12%, transparent);
+				font-size: 11px;
+				line-height: 1.55;
+				color: var(--text);
+			}
+
+			.status-note strong {
+				color: var(--warn);
+				font-weight: 700;
+			}
+
+			.status-note-title {
+				margin: 0 0 4px;
+				color: var(--warn);
+				font-weight: 700;
+				font-size: 11px;
+				line-height: 1.4;
+			}
+
+			.status-note-list {
+				margin: 0;
+				padding-left: 14px;
+			}
+
+			.status-note-list li {
+				margin: 0;
+				line-height: 1.5;
+			}
+
+			.status-connecting {
+				color: var(--warn);
+				font-size: 12px;
+				font-weight: 400;
+			}
+
+			.status-connected {
+				color: var(--ok);
+				font-size: 12px;
+				font-weight: 400;
+			}
+
+			.status-error {
+				color: var(--error);
+				font-weight: 400;
+			}
+
+			@media (max-width: 640px) {
+				body {
+					padding: 10px;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<main class="panel">
+			<section class="section-card config-card">
+				<div class="section-heading">
+					<h1 class="section-title">桥接设置</h1>
+					<p class="section-subtitle">设置桥接 WebSocket 地址，并实时查看当前页面连接状态。</p>
+				</div>
+				<div class="field">
+					<label class="field-label" for="serverUrl">桥接地址</label>
+					<input id="serverUrl" class="input" type="text" placeholder="ws://127.0.0.1:8765/bridge/ws" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" />
+				</div>
+				<div class="actions">
+					<button id="saveButton" class="button button-block" type="button" disabled>保存配置</button>
+				</div>
+			</section>
+			<section class="section-card status-card">
+				<div class="section-heading section-heading-compact">
+					<h2 class="section-title">连接状态</h2>
+				</div>
+				<div class="status-surface">
+					<div class="status-line">
+						<p class="status-title">桥接连接</p>
+						<p id="bridgeStatusText" class="status-text status-connecting">检测中</p>
+					</div>
+					<div class="status-line">
+						<p class="status-title">WebSocket</p>
+						<p id="socketStatusText" class="status-text status-connecting">检测中</p>
+					</div>
+					<div class="status-note">
+						<p class="status-note-title">说明</p>
+						<ul class="status-note-list">
+							<li>首次发起聊天才会启动服务；仅在原理图或 PCB 页面可连接。</li>
+							<li>若当前客户端与活动客户端不一致，请关闭其他 EDA 页面并刷新本页。</li>
+							<li>初次安装先确认 VS Code/Cursor 与 EDA 都已安装扩展，再检查聊天工具是否已正确配置 MCP 服务。</li>
+							<li>VS Code Copilot、Cursor Chat 会自动配置，Claude Code 等第三方一般需手动配置 MCP 服务。</li>
+						</ul>
+					</div>
+				</div>
+			</section>
+		</main>
+
+		<script src="/dist/settings.js"></script>
+	</body>
+</html>

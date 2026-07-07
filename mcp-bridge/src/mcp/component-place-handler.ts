@@ -117,7 +117,12 @@ function formatComponentTitle(component: ComponentPlaceItem): string {
 }
 
 function resolvePlaceComponentApi(): PlaceComponentApi {
-	const componentModule = (eda as unknown as { sch_PrimitiveComponent?: unknown }).sch_PrimitiveComponent;
+	const edaGlobal = (globalThis as unknown as { eda?: unknown }).eda;
+	if (!edaGlobal || typeof edaGlobal !== 'object') {
+		throw new Error('EDA 环境未就绪，无法访问 eda 全局对象。');
+	}
+
+	const componentModule = (edaGlobal as { sch_PrimitiveComponent?: unknown }).sch_PrimitiveComponent;
 	if (!isPlainObjectRecord(componentModule)
 		|| typeof componentModule.placeComponentWithMouse !== 'function'
 		|| typeof componentModule.getAllPrimitiveId !== 'function') {
@@ -132,7 +137,12 @@ function resolvePlaceComponentApi(): PlaceComponentApi {
 }
 
 function resolveFollowMouseTipApi(): FollowMouseTipApi | null {
-	const messageModule = (eda as unknown as { sys_Message?: unknown }).sys_Message;
+	const edaGlobal = (globalThis as unknown as { eda?: unknown }).eda;
+	if (!edaGlobal || typeof edaGlobal !== 'object') {
+		return null;
+	}
+
+	const messageModule = (edaGlobal as { sys_Message?: unknown }).sys_Message;
 	if (!isPlainObjectRecord(messageModule)
 		|| typeof messageModule.showFollowMouseTip !== 'function'
 		|| typeof messageModule.removeFollowMouseTip !== 'function') {
@@ -266,8 +276,10 @@ export async function handleComponentPlaceStartTask(payload: unknown): Promise<u
 				}
 			}
 		}
-		catch {
+		catch (error: unknown) {
 			// 基线快照失败时保持空集合，后续任意新图元都视为放置完成。
+			// 这是一个合理的降级策略，因为空集合会让任何新增图元都被检测到。
+			console.warn('获取基线图元列表失败，将使用空基线：', toSafeErrorMessage(error));
 		}
 
 		const sessionId = createPlaceSessionId();

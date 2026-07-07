@@ -10,6 +10,7 @@
  */
 
 import { isPlainObjectRecord, parseBoundedIntegerValue, toSafeErrorMessage } from '../utils';
+import { debugLog } from '../utils/debug-log.ts';
 
 interface ComponentSelectCandidate {
 	uuid: string;
@@ -119,11 +120,13 @@ function getLibDeviceApi(): LibDeviceApi {
  * @returns 候选器件列表。
  */
 export async function handleComponentSelectTask(payload: unknown): Promise<unknown> {
+	debugLog('[DEBUG] component-select handler called, payload:', JSON.stringify(payload));
 	if (!isPlainObjectRecord(payload)) {
 		throw new TypeError('component/select 任务参数必须为对象。');
 	}
 
 	const keyword = String(payload.keyword ?? '').trim();
+	debugLog('[DEBUG] component-select keyword:', keyword);
 	if (keyword.length === 0) {
 		throw new Error('component_select 缺少 keyword 参数。');
 	}
@@ -135,13 +138,17 @@ export async function handleComponentSelectTask(payload: unknown): Promise<unkno
 
 	const limit = parseBoundedIntegerValue(payload.limit, COMPONENT_SELECT_DEFAULT_LIMIT, 2, 20);
 	const page = parseBoundedIntegerValue(payload.page, 1, 1, 9999);
+	debugLog('[DEBUG] component-select calling getLibDeviceApi');
 	const libDevice = getLibDeviceApi();
+	debugLog('[DEBUG] component-select got libDevice, calling search');
 
 	let rawResults: unknown[];
 	try {
 		rawResults = await libDevice.search(keyword, undefined, undefined, undefined, limit, page);
+		debugLog('[DEBUG] component-select search returned:', Array.isArray(rawResults) ? rawResults.length : 'not-array', 'items');
 	}
 	catch (error: unknown) {
+		debugLog('[DEBUG] component-select search failed:', error);
 		throw new Error(`器件搜索失败：${toSafeErrorMessage(error)}`);
 	}
 
