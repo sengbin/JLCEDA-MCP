@@ -38,6 +38,12 @@ function getRuntimeCommand(): string {
   return process.execPath;
 }
 
+// Cursor/VS Code 通过 process.execPath（Electron）拉起 runtime.js。
+// MCP 子进程需以 Node 模式运行，否则 macOS 上会报 Unable to find helper app 并立即退出。
+function getRuntimeEnv(): Record<string, string> {
+  return { ELECTRON_RUN_AS_NODE: '1' };
+}
+
 // 获取 MCP stdio 运行时入口脚本绝对路径。
 function getRuntimeScriptPath(extensionPath: string): string {
   return path.join(extensionPath, 'out', 'server', 'runtime.js');
@@ -91,7 +97,7 @@ export function createVscodeStdioServerDefinition(
     '嘉立创 EDA',
     getRuntimeCommand(),
     getRuntimeArgs(extensionPath, storageDirectoryPath, sessionId, config, version, httpPort),
-    {},
+    getRuntimeEnv(),
     version
   );
   definition.cwd = vscode.Uri.file(extensionPath);
@@ -119,7 +125,7 @@ export function createCursorStdioServerConfig(
     server: {
       command: getRuntimeCommand(),
       args: getRuntimeArgs(extensionPath, storageDirectoryPath, sessionId, config, version, httpPort),
-      env: {}
+      env: getRuntimeEnv()
     }
   };
 }
